@@ -1,306 +1,79 @@
 <!DOCTYPE html>
-<meta charset="UTF-8">
-<title>Life</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="format-detection" content="telephone=no">
-<link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Open+Sans:400,300">
-<style>
-*{
-	font-family: Open Sans, Helvetica, Arial, sans-serif;
-}
-body{
-	color: #fff;
-	background-color: #384047;
-	margin: 0;
-	padding: 0;
-	font-size: 12px;
-	-webkit-text-size-adjust: none;
-	position: relative;
-}
-a{
-	color: #fff;
-}
-header{
-	position: fixed;
-	bottom: 0;
-	margin: 0;
-	padding: 20px;
-}
-header a{
-	margin-left: 1em;
-	opacity: .3;
-	text-decoration: none;
-}
-header a:hover{
-	opacity: .7;
-	text-decoration: underline;
-}
-h1{
-	display: inline;
-	font-size: 20px;
-	font-weight: normal;
-	line-height: 1em;
-	opacity: .5;
-	z-index: 3;
-	font-weight: 300;
-	white-space: nowrap;
-}
-#life{
-	padding-top: 40px;
-	padding-bottom: 5em;
-}
-#life section.year{
-	box-sizing: border-box;
-	border-left: 1px dashed rgba(255,255,255,.1);
-	color: rgba(255,255,255,.3);
-	position: absolute;
-	top: 0;
-	bottom: 0;
-	padding-left: 10px;
-	padding-top: 10px;
-	pointer-events: none;
-	font-weight: 300;
-	white-space: nowrap;
-}
-#life .event{
-	padding-right: 20px;
-	padding-bottom: 5px;
-	vertical-align: middle;
-	white-space: nowrap;
-}
-#life .event b{
-	font-weight: normal;
-	color: rgba(255,255,255,.5);
-}
-#life .event .time{
-	display: inline-block;
-	overflow: hidden;
-	height: 0;
-	border: 4px solid #fff;
-	border-radius: 4px;
-	margin-right: 10px;
-	opacity: .3;
-	position: relative;
-	left: -2px;
-}
-#life .event:hover .time{
-	opacity: .5;
-}
-</style>
-<header>
-	<h1 id="title">Life</h1>
-	<a href="https://github.com/cheeaun/life">Fork me</a>
-</header>
-<div id="life"></div>
-<script>
-(function(){
-	var life = {
-		$title: document.getElementById('title'),
-		$el: document.getElementById('life'),
-		utils: {
-			extend: function(object){
-				var args = Array.prototype.slice.call(arguments, 1);
-				for (var i=0, source; source=args[i]; i++){
-					if (!source) continue;
-					for (var property in source){
-						object[property] = source[property];
-					}
-				}
-				return object;
-			}
-		},
-		config: {
-			yearLength: 120, // 120px per year
-			hideAge: false, // Hide age from year axis
-			customStylesheetURL: null // Custom stylesheet
-		},
-		start: function(){
-			life.loadConfig(function(config){
-				life.config = life.utils.extend(life.config, config);
-				if (life.config.customStylesheetURL) life.injectStylesheet(life.config.customStylesheetURL);
+<html>
 
-				life.fetch(function(response){
-					var data = life.parse(response);
-					var title = life.parseTitle(response);
-					life.render(title, data);
-				});
-			});
-		},
-		loadConfig: function(fn){
-			var xhr = new XMLHttpRequest();
-			xhr.open('GET', 'config.json', true);
-			xhr.onload = function(){
-				if (xhr.status == 200){
-					fn(JSON.parse(xhr.responseText));
-				} else {
-					fn({});
-				}
-			};
-			xhr.onerror = xhr.onabort = function(){
-				fn({});
-			};
-			xhr.send();
-		},
-		injectStylesheet: function(url){
-			var link = document.createElement('link');
-			link.rel = 'stylesheet';
-			link.href = url;
-			document.body.appendChild(link);
-		},
-		fetch: function(fn){
-			var xhr = new XMLHttpRequest();
-			xhr.open('GET', 'life.md', true);
-			xhr.onload = function(){
-				if (xhr.status == 200) fn(xhr.responseText);
-			};
-			xhr.send();
-		},
-		parse: function(response){
-			var list = response.match(/\-\s+[^\n\r]+/ig);
-			var data = [];
-			list.forEach(function(l){
-				var matches = l.match(/\-\s+([\d\/\-\~]+)\s(.*)/i);
-				var time = matches[1];
-				var text = matches[2];
-				data.push({
-					time: life.parseTime(time),
-					text: text
-				});
-			});
-			return data;
-		},
-		parseTitle: function(response){
-			return response.match(/[^\r\n]+/i)[0];
-		},
-		parseTime: function(time, point){
-			if (!point) point = 'start';
-			var data = {};
-			if (/^\~\d+$/.test(time)){ // ~YYYY
-				data = {
-					startYear: parseInt(time.slice(1), 10),
-					estimate: true
-				};
-			} else if (/^\d+$/.test(time)){ // YYYY
-				data[point + 'Year'] = parseInt(time, 10);
-			} else if (/^\d+\/\d+$/.test(time)){ // MM/YYYY
-				var t = time.split('/');
-				data[point + 'Month'] = parseInt(t[0], 10);
-				data[point + 'Year'] = parseInt(t[1], 10);
-			} else if (/^\d+\/\d+\/\d+$/.test(time)){ // DD/MM/YYYY
-				var t = time.split('/');
-				data[point + 'Date'] = parseInt(t[0], 10);
-				data[point + 'Month'] = parseInt(t[1], 10);
-				data[point + 'Year'] = parseInt(t[2], 10);
-			} else if (/\d\-/.test(time)){ // TIME-TIME
-				var splitTime = time.split('-');
-				var startTime = life.parseTime(splitTime[0]);
-				var endTime = life.parseTime(splitTime[1], 'end');
-				for (var k in startTime) { data[k] = startTime[k] }
-				for (var k in endTime) { data[k] = endTime[k] }
-			} else if (time == '~'){ // NOW
-				var now = new Date();
-				data.endYear = now.getFullYear();
-				data.endMonth = now.getMonth()+1;
-				data.endDate = now.getDate();
-			}
-			data.title = time;
-			return data;
-		},
-		firstYear: null,
-		renderEvent: function(d){
-			var firstYear = life.firstYear;
-			var yearLength = life.config.yearLength;
-			var monthLength = yearLength/12;
-			var dayLength = monthLength/30;
+  <head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="chrome=1" />
+    <meta name="description" content="Life : Life - a timeline of important events in my life" />
 
-			var time = d.time;
-			var estimate = time.estimate;
-			var startYear = time.startYear;
-			var startMonth = time.startMonth;
-			var startDate = time.startDate;
-			var endYear = time.endYear;
-			var endMonth = time.endMonth;
-			var endDate = time.endDate;
-			var width = 0;
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
 
-			// Calculate offset
-			var startTime = new Date(firstYear, 0, 1);
-			var endTime = new Date(startYear, startMonth ? startMonth-1 : 0, startDate || 1);
-			var daysDiff = (endTime - startTime)/(24*60*60*1000);
-			offset = daysDiff*dayLength;
+    <title>Life</title>
+  </head>
 
-			// Calculate width
-			if (endYear){
-				var _endMonth = endMonth ? endMonth-1 : 11;
-				var _endDate = endDate || new Date(endYear, _endMonth+1, 0).getDate();
-				startTime = new Date(startYear, startMonth ? startMonth-1 : 0, startDate || 1);
-				endTime = new Date(endYear, _endMonth, _endDate);
-				daysDiff = (endTime - startTime)/(24*60*60*1000);
-				width = daysDiff*dayLength;
-			} else {
-				if (startDate){
-					width = dayLength;
-				} else if (startMonth){
-					width = monthLength;
-				} else {
-					width = yearLength;
-				}
-			}
+  <body>
 
-			// Parse Markdown links in the text
-			// credit: http://stackoverflow.com/a/9268827
-			var link = null;
-			while(link = d.text.match(/\[([^\]]+)\]\(([^)"]+)(?: \"([^\"]+)\")?\)/)) {
-				var link_attr = "";
-				if (link[3] !== undefined) {
-					link_attr = " title='" + link[3] + "'";
-				}
-				d.text = d.text.replace(link[0], "<a href='" + link[2] + "'" + link_attr + ">" + link[1] + "</a>");
-			}
-			
-			return '<div class="event" style="margin-left: ' + offset.toFixed(2) + 'px">'
-				+ '<div class="time" style="width: ' + width.toFixed(2) + 'px"></div>'
-				+ '<b>' + d.time.title + '</b> ' + d.text + '&nbsp;&nbsp;'
-				+ '</div>';
-			return '';
-		},
-		renderYears: function(firstYear, lastYear){
-			var dayLength = life.config.yearLength/12/30;
-			var html = '';
-			var days = 0;
-			var hideAge = life.config.hideAge;
-			for (var y=firstYear, age = 0; y<=lastYear+1; y++, age++){
-				html += '<section class="year" style="left: ' + (days*dayLength).toFixed(2) + 'px">'
-					+ y + (hideAge ? '' : (' (' + age + ')'))
-					+ '</section>';
-				days += (y % 4 == 0) ? 366 : 365;
-			}
-			return html;
-		},
-		render: function(title, data){
-			document.title = title;
-			life.$title.innerHTML = title;
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/devogon/life">View on GitHub</a>
 
-			// Get the first and last year for the year axis
-			var firstYear = new Date().getFullYear();
-			var lastYear = firstYear;
-			data.forEach(function(d){
-				var time = d.time;
-				var startYear = time.startYear;
-				var endYear = time.endYear;
-				if (startYear && startYear < firstYear) firstYear = startYear;
-				if (endYear && endYear > lastYear) lastYear = endYear;
-			});
-			life.firstYear = firstYear;
+          <h1 id="project_title">Life</h1>
+          <h2 id="project_tagline">Life - a timeline of important events in my life</h2>
 
-			var html = life.renderYears(firstYear, lastYear);
-			data.forEach(function(d){
-				html += life.renderEvent(d);
-			});
-			life.$el.innerHTML = html;
-		}
-	};
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/devogon/life/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/devogon/life/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
 
-	life.start();
-})();
-</script>
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h3>
+<a name="welcome-to-github-pages" class="anchor" href="#welcome-to-github-pages"><span class="octicon octicon-link"></span></a>Welcome to GitHub Pages.</h3>
+
+<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
+
+<pre><code>$ cd your_repo_root/repo_name
+$ git fetch origin
+$ git checkout gh-pages
+</code></pre>
+
+<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
+
+<h3>
+<a name="designer-templates" class="anchor" href="#designer-templates"><span class="octicon octicon-link"></span></a>Designer Templates</h3>
+
+<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
+
+<h3>
+<a name="rather-drive-stick" class="anchor" href="#rather-drive-stick"><span class="octicon octicon-link"></span></a>Rather Drive Stick?</h3>
+
+<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
+
+<h3>
+<a name="authors-and-contributors" class="anchor" href="#authors-and-contributors"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
+
+<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
+
+<h3>
+<a name="support-or-contact" class="anchor" href="#support-or-contact"><span class="octicon octicon-link"></span></a>Support or Contact</h3>
+
+<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Life maintained by <a href="https://github.com/devogon">devogon</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
